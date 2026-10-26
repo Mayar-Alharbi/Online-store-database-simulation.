@@ -1,0 +1,134 @@
+-- This is an online store (Mayar's Goodies) database simulation
+-- made my: Mayar Alharbi
+
+DROP DATABASE IF EXISTS mayars_goodies;
+CREATE DATABASE mayars_goodies
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+USE mayars_goodies;
+
+CREATE TABLE customers (
+  customer_id   INT AUTO_INCREMENT PRIMARY KEY,
+  first_name    VARCHAR(50)  NOT NULL,
+  last_name     VARCHAR(50)  NOT NULL,
+  email         VARCHAR(100) NOT NULL UNIQUE,
+  phone         VARCHAR(20),
+  password_hash VARCHAR(255) NOT NULL,
+  created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE addresses (
+  address_id   INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id  INT NOT NULL,
+  street       VARCHAR(150) NOT NULL,
+  city         VARCHAR(80)  NOT NULL,
+  country      VARCHAR(80)  NOT NULL DEFAULT 'Saudi Arabia',
+  postal_code  VARCHAR(20),
+  is_default   BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+    ON DELETE CASCADE
+);
+
+CREATE TABLE categories (
+  category_id  INT AUTO_INCREMENT PRIMARY KEY,
+  name         VARCHAR(80) NOT NULL UNIQUE,
+  description  TEXT
+);
+
+CREATE TABLE products (
+  product_id   INT AUTO_INCREMENT PRIMARY KEY,
+  category_id  INT NOT NULL,
+  name         VARCHAR(120) NOT NULL,
+  description  TEXT,
+  price        DECIMAL(10,2) NOT NULL CHECK (price >= 0),
+  stock        INT NOT NULL DEFAULT 0 CHECK (stock >= 0),
+  image_url    VARCHAR(255),
+  is_active    BOOLEAN DEFAULT TRUE,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES categories(category_id)
+);
+
+-- ---------- 5. Orders ----------
+CREATE TABLE orders (
+  order_id     INT AUTO_INCREMENT PRIMARY KEY,
+  customer_id  INT NOT NULL,
+  address_id   INT NOT NULL,
+  order_date   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status       ENUM('pending','paid','shipped','delivered','cancelled')
+               NOT NULL DEFAULT 'pending',
+  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id),
+  FOREIGN KEY (address_id)  REFERENCES addresses(address_id)
+);
+
+CREATE TABLE order_items (
+  order_item_id INT AUTO_INCREMENT PRIMARY KEY,
+  order_id      INT NOT NULL,
+  product_id    INT NOT NULL,
+  quantity      INT NOT NULL CHECK (quantity > 0),
+  unit_price    DECIMAL(10,2) NOT NULL,
+  FOREIGN KEY (order_id)   REFERENCES orders(order_id) ON DELETE CASCADE,
+  FOREIGN KEY (product_id) REFERENCES products(product_id)
+);
+
+CREATE TABLE payments (
+  payment_id   INT AUTO_INCREMENT PRIMARY KEY,
+  order_id     INT NOT NULL,
+  method       ENUM('card','cash_on_delivery','apple_pay','mada') NOT NULL,
+  amount       DECIMAL(10,2) NOT NULL,
+  paid_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (order_id) REFERENCES orders(order_id)
+);
+
+CREATE TABLE reviews (
+  review_id    INT AUTO_INCREMENT PRIMARY KEY,
+  product_id   INT NOT NULL,
+  customer_id  INT NOT NULL,
+  rating       TINYINT NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  comment      TEXT,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (product_id, customer_id),
+  FOREIGN KEY (product_id)  REFERENCES products(product_id)  ON DELETE CASCADE,
+  FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_products_category ON products(category_id);
+CREATE INDEX idx_orders_customer   ON orders(customer_id);
+CREATE INDEX idx_items_order       ON order_items(order_id);
+
+INSERT INTO categories (name, description) VALUES
+  ('Sweets',      'Chocolates, candies and desserts'),
+  ('Accessories', 'Cute accessories and gifts'),
+  ('Stationery',  'Notebooks, pens and stickers');
+
+INSERT INTO products (category_id, name, description, price, stock) VALUES
+  (1, 'Chocolate Box',      'Assorted premium chocolates', 55.00, 40),
+  (1, 'Cookie Gift Pack',   'Handmade cookies, 12 pieces', 38.50, 25),
+  (2, 'Pearl Hair Clip',    'Elegant pearl hair clip',     22.00, 60),
+  (3, 'Floral Notebook',    'A5 notebook, 120 pages',      18.00, 80),
+  (3, 'Sticker Pack',       '50 waterproof stickers',      12.00, 150);
+
+INSERT INTO customers (first_name, last_name, email, phone, password_hash) VALUES
+  ('Sara',  'Ahmed', 'sara@example.com',  '0500000001', 'hashed_password_1'),
+  ('Noura', 'Ali',   'noura@example.com', '0500000002', 'hashed_password_2');
+
+INSERT INTO addresses (customer_id, street, city, postal_code, is_default) VALUES
+  (1, 'King Road',   'Jeddah', '21442', TRUE),
+  (2, 'Prince Street','Jeddah', '21589', TRUE);
+
+INSERT INTO orders (customer_id, address_id, status, total_amount) VALUES
+  (1, 1, 'paid',    93.00),
+  (2, 2, 'pending', 30.00);
+
+INSERT INTO order_items (order_id, product_id, quantity, unit_price) VALUES
+  (1, 1, 1, 55.00),
+  (1, 2, 1, 38.00),
+  (2, 4, 1, 18.00),
+  (2, 5, 1, 12.00);
+
+INSERT INTO payments (order_id, method, amount) VALUES
+  (1, 'mada', 93.00);
+
+INSERT INTO reviews (product_id, customer_id, rating, comment) VALUES
+  (1, 1, 5, 'Delicious and beautifully packed!');
+  
